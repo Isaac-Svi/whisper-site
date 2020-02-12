@@ -4,9 +4,10 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const ejs = require('ejs');
 const mongoose = require('mongoose');
-const md5 = require('md5');
-let port = 3000;
+const bcrypt = require('bcrypt');
+const saltRounds = 10;
 
+let port = 3000;
 const app = express();
 
 app.use(express.static('public'));
@@ -47,11 +48,13 @@ app.route('/login')
         res.send(err);
       } else {
         if (foundUser) {
-          if (foundUser.password === md5(req.body.password)) {
-            res.render('secrets');
-          } else {
-            res.send('Email and password don\'t match.');
-          }
+          bcrypt.compare(req.body.password, foundUser.password, (err, result) => {
+            if (result === true) {
+              res.render('secrets');
+            } else {
+              res.send('Email and password don\'t match.');
+            }
+          });
         } else {
           res.send('User doesn\'t exist. Would you like to register?');
         }
@@ -73,18 +76,18 @@ app.route('/register')
         res.send('User with this email already exists.');
       }
       else {
-
-        const newUser = new User({
-          email: req.body.username,
-          password: md5(req.body.password)
-        });
-
-        newUser.save((err) => {
-          if (err) {
-            console.log(err);
-          } else {
-            res.render('secrets')
-          }
+        bcrypt.hash(req.body.password, saltRounds, (err, hash) => {
+          const newUser = new User({
+            email: req.body.username,
+            password: hash
+          });
+          newUser.save((err) => {
+            if (err) {
+              console.log(err);
+            } else {
+              res.render('secrets')
+            }
+          });
         });
       }
     });
